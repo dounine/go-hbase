@@ -14,7 +14,7 @@ func main() {
 		ConnectTimeout: 3 * time.Second,
 		SocketTimeout:  3 * time.Second,
 	})
-	transport := thrift.NewTSocketConf("47.110.140.35:9090", &thrift.TConfiguration{})
+	transport := thrift.NewTSocketConf("127.0.0.1:9090", &thrift.TConfiguration{})
 	client := hbase.NewTHBaseServiceClientFactory(transport, protocolFactory)
 	if err := transport.Open(); err != nil {
 		panic(err)
