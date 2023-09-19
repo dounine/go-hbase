@@ -4,9 +4,9 @@ WORKDIR /app
 # Go 代码复制到容器中
 COPY . .
 # 构建 Go 二进制文件
-RUN go build -o myapp .
+RUN go build -ldflags "-w -s" -o myapp .
 # 使用轻量的 alpine 镜像作为最终的容器镜像
-FROM alpine:latest
+FROM alpine:3.14
 # 设置工作目录
 WORKDIR /app
 # 从构建阶段复制 Go 二进制文件
