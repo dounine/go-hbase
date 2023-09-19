@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go-hbase/hbase"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -21,13 +22,17 @@ func MD5(str string) string {
 
 type UserQuery struct {
 	UID  *string  `json:"uid"`
-	UIDS []string `json:"uids" binding:"lte=100"`
+	UIDS []string `json:"uids"`
 }
 
 func main() {
 	domain := os.Getenv("domain")
 	if domain == "" {
 		domain = "127.0.0.1:9090"
+	}
+	maxLength := os.Getenv("maxLength")
+	if maxLength == "" {
+		maxLength = "100"
 	}
 	fmt.Println("hbase domain:", domain)
 	protocolFactory := thrift.NewTBinaryProtocolFactoryConf(&thrift.TConfiguration{
@@ -77,6 +82,19 @@ func main() {
 				"data": data,
 			})
 		} else if userQuery.UIDS != nil {
+			max, err := strconv.Atoi(maxLength)
+			if err != nil {
+				c.JSON(200, gin.H{
+					"msg": "maxLength必须为数字",
+				})
+				return
+			}
+			if len(userQuery.UIDS) > max {
+				c.JSON(200, gin.H{
+					"msg": "uids最多" + maxLength + "个",
+				})
+				return
+			}
 			var gets []*hbase.TGet
 			for _, uid := range userQuery.UIDS {
 				gets = append(gets, &hbase.TGet{Row: []byte(MD5(uid))})
