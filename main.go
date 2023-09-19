@@ -41,6 +41,7 @@ func main() {
 	}
 	userTable := []byte("USER_TABLE_V3")
 
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
