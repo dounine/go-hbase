@@ -58,7 +58,7 @@ func main() {
 	r.GET("/user", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		var userQuery UserQuery
-		err := c.ShouldBindJSON(&userQuery)
+		err := c.ShouldBindQuery(&userQuery)
 		if err != nil {
 			c.JSON(200, gin.H{
 				"msg": err.Error(),
