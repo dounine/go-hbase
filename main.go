@@ -55,10 +55,10 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	r.GET("/user", func(c *gin.Context) {
+	r.POST("/user", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		var userQuery UserQuery
-		err := c.ShouldBindQuery(&userQuery)
+		err := c.ShouldBindJSON(&userQuery)
 		if err != nil {
 			c.JSON(200, gin.H{
 				"msg": err.Error(),
