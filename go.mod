@@ -1,6 +1,6 @@
 module go-hbase
 
-go 1.23.0
+go 1.23
 
 require (
 	github.com/apache/thrift v0.19.0
