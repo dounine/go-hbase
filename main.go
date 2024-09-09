@@ -24,6 +24,11 @@ type UserQuery struct {
 	UID  *string  `json:"uid"`
 	UIDS []string `json:"uids"`
 }
+type UserUpdate struct {
+	UID     *string  `json:"uid"`
+	UIDS    []string `json:"uids"`
+	OutCode *string  `json:"out_code"`
+}
 
 func main() {
 	domain := os.Getenv("domain")
@@ -54,6 +59,71 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Token"},
 		AllowCredentials: true,
 	}))
+	r.POST("/userUpdate", func(c *gin.Context) {
+		ctx := c.Request.Context()
+		var userUpdate UserUpdate
+		err := c.ShouldBindJSON(&userUpdate)
+		if err != nil {
+			c.JSON(200, gin.H{
+				"msg": err.Error(),
+			})
+			return
+		}
+		if userUpdate.UID != nil {
+			put := hbase.TPut{Row: []byte(MD5(*userUpdate.UID)), ColumnValues: []*hbase.TColumnValue{{
+				Family:    []byte("ext"),
+				Qualifier: []byte("out_ccode"),
+				Value:     []byte(*userUpdate.OutCode),
+			}}}
+			err := client.Put(ctx, userTable, &put)
+			if err != nil {
+				c.JSON(200, gin.H{
+					"msg": err.Error(),
+				})
+				return
+			}
+			c.JSON(200, gin.H{
+				"code": 1,
+			})
+		} else if userUpdate.UIDS != nil {
+			max, err := strconv.Atoi(maxLength)
+			if err != nil {
+				c.JSON(200, gin.H{
+					"msg": "maxLength必须为数字",
+				})
+				return
+			}
+			if len(userUpdate.UIDS) > max {
+				c.JSON(200, gin.H{
+					"msg": "uids最多" + maxLength + "个",
+				})
+				return
+			}
+			var puts []*hbase.TPut
+			for _, uid := range userUpdate.UIDS {
+				put := hbase.TPut{Row: []byte(MD5(uid)), ColumnValues: []*hbase.TColumnValue{{
+					Family:    []byte("ext"),
+					Qualifier: []byte("out_ccode"),
+					Value:     []byte(*userUpdate.OutCode),
+				}}}
+				puts = append(puts, &put)
+			}
+			err = client.PutMultiple(ctx, userTable, puts)
+			if err != nil {
+				c.JSON(200, gin.H{
+					"msg": err.Error(),
+				})
+				return
+			}
+			c.JSON(200, gin.H{
+				"code": 1,
+			})
+		} else {
+			c.JSON(200, gin.H{
+				"msg": "uid或者uids必填其中一个参数,out_code必填",
+			})
+		}
+	})
 
 	r.POST("/user", func(c *gin.Context) {
 		ctx := c.Request.Context()
