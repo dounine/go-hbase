@@ -1,4 +1,4 @@
-FROM golang:1.23.0-alpine3.19 as builder
+FROM golang:1.23-alpine3.19 as builder
 # 设置工作目录
 WORKDIR /app
 # Go 代码复制到容器中

@@ -98,7 +98,9 @@ func main() {
 			for _, column := range result.ColumnValues {
 				data[string(column.Qualifier)] = string(column.Value)
 			}
-			logger.Println(fmt.Sprintf("%s 更新 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
+			if _, ok := data["out_ccode"]; ok {
+				logger.Println(fmt.Sprintf("%s 更新 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
+			}
 			put := hbase.TPut{Row: []byte(MD5(*userUpdate.UID)), ColumnValues: []*hbase.TColumnValue{{
 				Family:    []byte("ext"),
 				Qualifier: []byte("out_ccode"),
