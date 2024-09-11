@@ -27,7 +27,7 @@ type UserQuery struct {
 }
 type UserUpdate struct {
 	UID     *string `json:"uid"`
-	OutCode *string `json:"out_code"`
+	OutCode *string `json:"out_ccode"`
 }
 
 func main() {
@@ -75,7 +75,7 @@ func main() {
 			return
 		}
 	}(logFile)
-
+	logger.SetOutput(logFile)
 	r.POST("/userUpdate", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		var userUpdate UserUpdate
@@ -99,7 +99,9 @@ func main() {
 				data[string(column.Qualifier)] = string(column.Value)
 			}
 			if _, ok := data["out_ccode"]; ok {
-				logger.Println(fmt.Sprintf("%s 更新 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
+				logger.Println(fmt.Sprintf("uid:%s 更新 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
+			} else {
+				logger.Println(fmt.Sprintf("uid:%s 创建 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
 			}
 			put := hbase.TPut{Row: []byte(MD5(*userUpdate.UID)), ColumnValues: []*hbase.TColumnValue{{
 				Family:    []byte("ext"),
