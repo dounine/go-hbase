@@ -8,15 +8,16 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go-hbase/hbase"
+	"log"
 	"os"
 	"strconv"
 	"time"
 )
 
 func MD5(str string) string {
-	hasher := md5.New()
-	hasher.Write([]byte(str))
-	hashBytes := hasher.Sum(nil)
+	hashed := md5.New()
+	hashed.Write([]byte(str))
+	hashBytes := hashed.Sum(nil)
 	return hex.EncodeToString(hashBytes)
 }
 
@@ -25,9 +26,8 @@ type UserQuery struct {
 	UIDS []string `json:"uids"`
 }
 type UserUpdate struct {
-	UID     *string  `json:"uid"`
-	UIDS    []string `json:"uids"`
-	OutCode *string  `json:"out_code"`
+	UID     *string `json:"uid"`
+	OutCode *string `json:"out_code"`
 }
 
 func main() {
@@ -38,6 +38,10 @@ func main() {
 	maxLength := os.Getenv("maxLength")
 	if maxLength == "" {
 		maxLength = "100"
+	}
+	logPath := os.Getenv("logPath")
+	if logPath == "" {
+		logPath = "/app/log"
 	}
 	fmt.Println("hbase domain:", domain)
 	protocolFactory := thrift.NewTBinaryProtocolFactoryConf(&thrift.TConfiguration{
@@ -59,6 +63,19 @@ func main() {
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Token"},
 		AllowCredentials: true,
 	}))
+	logger := log.New(os.Stdout, "INFO:", log.Ldate|log.Ltime)
+	//日志输出
+	logFile, logErr := os.OpenFile(fmt.Sprintf("%s/logs.log", logPath), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if logErr != nil {
+		logger.Fatal("无法打开日志文件:", logErr)
+	}
+	defer func(logFile *os.File) {
+		err := logFile.Close()
+		if err != nil {
+			return
+		}
+	}(logFile)
+
 	r.POST("/userUpdate", func(c *gin.Context) {
 		ctx := c.Request.Context()
 		var userUpdate UserUpdate
@@ -70,45 +87,25 @@ func main() {
 			return
 		}
 		if userUpdate.UID != nil {
-			put := hbase.TPut{Row: []byte(MD5(*userUpdate.UID)), ColumnValues: []*hbase.TColumnValue{{
-				Family:    []byte("ext"),
-				Qualifier: []byte("out_ccode"),
-				Value:     []byte(*userUpdate.OutCode),
-			}}}
-			err := client.Put(ctx, userTable, &put)
+			result, err := client.Get(ctx, userTable, &hbase.TGet{Row: []byte(MD5(*userUpdate.UID))})
 			if err != nil {
 				c.JSON(200, gin.H{
 					"msg": err.Error(),
 				})
 				return
 			}
-			c.JSON(200, gin.H{
-				"code": 1,
-			})
-		} else if userUpdate.UIDS != nil {
-			max, err := strconv.Atoi(maxLength)
-			if err != nil {
-				c.JSON(200, gin.H{
-					"msg": "maxLength必须为数字",
-				})
-				return
+			data := make(map[string]string)
+			for _, column := range result.ColumnValues {
+				data[string(column.Qualifier)] = string(column.Value)
 			}
-			if len(userUpdate.UIDS) > max {
-				c.JSON(200, gin.H{
-					"msg": "uids最多" + maxLength + "个",
-				})
-				return
-			}
-			var puts []*hbase.TPut
-			for _, uid := range userUpdate.UIDS {
-				put := hbase.TPut{Row: []byte(MD5(uid)), ColumnValues: []*hbase.TColumnValue{{
-					Family:    []byte("ext"),
-					Qualifier: []byte("out_ccode"),
-					Value:     []byte(*userUpdate.OutCode),
-				}}}
-				puts = append(puts, &put)
-			}
-			err = client.PutMultiple(ctx, userTable, puts)
+			logger.Println(fmt.Sprintf("%s 更新 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
+			put := hbase.TPut{Row: []byte(MD5(*userUpdate.UID)), ColumnValues: []*hbase.TColumnValue{{
+				Family:    []byte("ext"),
+				Qualifier: []byte("out_ccode"),
+				Value:     []byte(*userUpdate.OutCode),
+			}}}
+
+			err = client.Put(ctx, userTable, &put)
 			if err != nil {
 				c.JSON(200, gin.H{
 					"msg": err.Error(),
@@ -120,7 +117,7 @@ func main() {
 			})
 		} else {
 			c.JSON(200, gin.H{
-				"msg": "uid或者uids必填其中一个参数,out_code必填",
+				"msg": "uid,out_code必填",
 			})
 		}
 	})
