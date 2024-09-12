@@ -99,6 +99,12 @@ func main() {
 				data[string(column.Qualifier)] = string(column.Value)
 			}
 			if _, ok := data["out_ccode"]; ok {
+				if data["out_ccode"] == *userUpdate.OutCode {
+					c.JSON(200, gin.H{
+						"msg": "out_ccode相同,未更新",
+					})
+					return
+				}
 				logger.Println(fmt.Sprintf("uid:%s 更新 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
 			} else {
 				logger.Println(fmt.Sprintf("uid:%s 创建 out_ccode:%s -> out_ccode:%s", *userUpdate.UID, data["out_ccode"], *userUpdate.OutCode))
